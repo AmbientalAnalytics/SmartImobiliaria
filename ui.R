@@ -4,14 +4,14 @@ library(leaflet)
 library(tidyverse)
 
 # Shiny UI
-?setView
+#?setView
 ui <- fluidPage(
         titlePanel("Inmobiliaria"),
             sidebarLayout(
               sidebarPanel(
-                textInput( inputId = "texto",
+                textInput( inputId = "Direccion",
                            label = "Seleccionar dirección",
-                           value = "")),
+                           value = "pedernera, 2037 - posadas")),
              mainPanel(
                leafletOutput("mymap",height = 1000)
   )
