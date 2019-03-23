@@ -5,17 +5,29 @@ library(tidyverse)
 
 #devtools::install_github("hrbrmstr/nominatim")
 library(nominatim)
+library(sf)
 
 # Shiny server
 server <- function(input,output){
+  #Building index
+  # distance from school
+  escuela <- read_sf("./Datos/DatosEspaciais.gpkg", "Escuelas")
+  competencia <- read_sf("./Datos/DatosEspaciais.gpkg", "Restaurantes")
   
   output$mymap <- renderLeaflet({
     
     # Hay que agregar un try/catch caso direccion estes NULL
-    dir <- osm_geocode(tolower(input$Direccion),#"pedernera, 2037 - posadas, ar",
-                       limit=1,
-                       key = Sys.getenv("consumer_key"),
-                       country_codes = 'ar')
+    dir <- osm_geocode(#tolower(input$Direccion),#
+      "pedernera, 2037 - posadas, ar",
+      limit=1,
+      key = Sys.getenv("consumer_key"),
+      country_codes = 'ar')
+    dir.sf <- st_as_sf(x = dir, coords = c("lon", "lat"), crs = 4326)
+    
+    # competencia <- osm_search(paste0(input$Rubro,"+posadas"), limit=5,
+    #                           key = Sys.getenv("consumer_key"),
+    #                           country_codes = 'ar')
+    
     # if null
     if (is.null(dir)){
       dir <- NULL
@@ -26,9 +38,36 @@ server <- function(input,output){
     
     m <- leaflet() %>% #cambiar a un mapa base mas limpio
       addTiles() %>%
-      addMarkers(
-        lat = dir$lat, lng = dir$lon, popup = paste(dir$place_id)) %>% 
-      setView(lng = dir$lon, lat = dir$lat, zoom = 20)
+      addProviderTiles(providers$Stamen.Toner) %>% 
+      
+      # direccion buscada
+      addAwesomeMarkers( 
+        lng = dir$lon, lat = dir$lat, popup = paste(dir$display_name),
+        icon = awesomeIcons(
+          icon = 'ios-close',
+          iconColor = 'black',
+          library = 'ion',
+          markerColor = "green")) %>% 
+      # distribuicion competencia
+      addAwesomeMarkers( 
+        lng = st_coordinates(competencia)[,"X"],
+        lat = st_coordinates(competencia)[,"Y"], 
+        popup = paste(competencia$name),
+        icon = awesomeIcons(
+          icon = 'ios-close',
+          iconColor = 'black',
+          library = 'ion',
+          markerColor = "red")) %>% 
+      setView(
+        dir$lon, dir$lat, zoom = 16) #%>% 
+    #addLayersControl(
+    #  baseGroups = c("Stamen.Toner"),
+    #  overlayGroups = c("Hot SPrings"),
+    #  options = layersControlOptions(collapsed = T)
+    #  )
     m
   })
 }
+
+# distancia para escuela mas proxima:
+# st_distance(dir.sf, escuela)[which.min(st_distance(dir.sf, escuela))]
