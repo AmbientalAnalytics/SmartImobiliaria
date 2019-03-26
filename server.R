@@ -17,8 +17,7 @@ server <- function(input,output){
   output$mymap <- renderLeaflet({
     
     # Hay que agregar un try/catch caso direccion estes NULL
-    dir <- osm_geocode(#tolower(input$Direccion),#
-      "pedernera, 2037 - posadas, ar",
+    dir <- osm_geocode(tolower(input$Direccion),#"pedernera, 2037 - posadas, ar",
       limit=1,
       key = Sys.getenv("consumer_key"),
       country_codes = 'ar')
