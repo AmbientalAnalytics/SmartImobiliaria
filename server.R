@@ -3,7 +3,7 @@ library(shiny)
 library(leaflet)
 library(tidyverse)
 
-#devtools::install_github("hrbrmstr/nominatim")
+devtools::install_github("hrbrmstr/nominatim")
 library(nominatim)
 library(sf)
 
@@ -13,59 +13,60 @@ server <- function(input,output){
   # distance from school
   escuela <- read_sf("./Datos/DatosEspaciais.gpkg", "Escuelas")
   competencia <- read_sf("./Datos/DatosEspaciais.gpkg", "Restaurantes")
+  # Hay que agregar un try/catch caso direccion estes NULL
+  dir <- osm_geocode(tolower(input$Direccion),
+                     #"pedernera, 2037 - posadas, ar",
+                     limit=1,
+                     key = Sys.getenv("consumer_key"),
+                     country_codes = 'ar')
+  dir.sf <- st_as_sf(x = dir, coords = c("lon", "lat"), crs = 4326)
   
-  output$mymap <- renderLeaflet({
+  # competencia <- osm_search(paste0(input$Rubro,"+posadas"), limit=5,
+  #                           key = Sys.getenv("consumer_key"),
+  #                           country_codes = 'ar')
+  
+  # if null
+  if (is.null(dir)){
+    dir <- NULL
+    dir$lon = -55.89492
+    dir$lat = -27.35812
+    dir$place_id = "Erro"
+  }
+  
+  m <- leaflet() %>% #cambiar a un mapa base mas limpio
+    addTiles() %>%
+    addProviderTiles(providers$Stamen.Toner) %>% 
     
-    # Hay que agregar un try/catch caso direccion estes NULL
-    dir <- osm_geocode(#tolower(input$Direccion),#
-      "pedernera, 2037 - posadas, ar",
-      limit=1,
-      key = Sys.getenv("consumer_key"),
-      country_codes = 'ar')
-    dir.sf <- st_as_sf(x = dir, coords = c("lon", "lat"), crs = 4326)
-    
-    # competencia <- osm_search(paste0(input$Rubro,"+posadas"), limit=5,
-    #                           key = Sys.getenv("consumer_key"),
-    #                           country_codes = 'ar')
-    
-    # if null
-    if (is.null(dir)){
-      dir <- NULL
-      dir$lon = -55.89492
-      dir$lat = -27.35812
-      dir$place_id = "Erro"
-    }
-    
-    m <- leaflet() %>% #cambiar a un mapa base mas limpio
-      addTiles() %>%
-      addProviderTiles(providers$Stamen.Toner) %>% 
-      
-      # direccion buscada
-      addAwesomeMarkers( 
-        lng = dir$lon, lat = dir$lat, popup = paste(dir$display_name),
-        icon = awesomeIcons(
-          icon = 'ios-close',
-          iconColor = 'black',
-          library = 'ion',
-          markerColor = "green")) %>% 
-      # distribuicion competencia
-      addAwesomeMarkers( 
-        lng = st_coordinates(competencia)[,"X"],
-        lat = st_coordinates(competencia)[,"Y"], 
-        popup = paste(competencia$name),
-        icon = awesomeIcons(
-          icon = 'ios-close',
-          iconColor = 'black',
-          library = 'ion',
-          markerColor = "red")) %>% 
-      setView(
-        dir$lon, dir$lat, zoom = 16) #%>% 
-    #addLayersControl(
-    #  baseGroups = c("Stamen.Toner"),
-    #  overlayGroups = c("Hot SPrings"),
-    #  options = layersControlOptions(collapsed = T)
-    #  )
+    # direccion buscada
+    addAwesomeMarkers( 
+      lng = dir$lon, lat = dir$lat, popup = paste(dir$display_name),
+      icon = awesomeIcons(
+        icon = 'ios-close',
+        iconColor = 'black',
+        library = 'ion',
+        markerColor = "green")) %>% 
+    # distribuicion competencia
+    addAwesomeMarkers( 
+      lng = st_coordinates(competencia)[,"X"],
+      lat = st_coordinates(competencia)[,"Y"], 
+      popup = paste(competencia$name),
+      icon = awesomeIcons(
+        icon = 'ios-close',
+        iconColor = 'black',
+        library = 'ion',
+        markerColor = "red")) %>% 
+    setView(dir$lon, dir$lat, zoom = 16) #%>% 
+  #addLayersControl(
+  #  baseGroups = c("Stamen.Toner"),
+  #  overlayGroups = c("Hot SPrings"),
+  #  options = layersControlOptions(collapsed = T)
+  #  )
+  # Hacer que se haga la busqueda solo cuando se presione el boton
+  evento_reactivo <- eventReactive(input$ActualizarIndicadores, {
     m
+  })
+  output$mymap <- renderLeaflet({
+    evento_reactivo # Se agrega el evento reactivo
   })
 }
 
