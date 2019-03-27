@@ -2,10 +2,11 @@
 library(shiny)
 library(leaflet)
 library(tidyverse)
+library(sf)
 
 devtools::install_github("hrbrmstr/nominatim")
 library(nominatim)
-library(sf)
+
 
 # Shiny server
 server <- function(input,output){
@@ -14,7 +15,8 @@ server <- function(input,output){
   escuela <- read_sf("./Datos/DatosEspaciais.gpkg", "Escuelas")
   competencia <- read_sf("./Datos/DatosEspaciais.gpkg", "Restaurantes")
   # Hay que agregar un try/catch caso direccion estes NULL
-  dir <- osm_geocode(tolower(input$Direccion),
+  boton_reactivo <- eventReactive(input$ActualizarIndicadores, {
+    dir <- osm_geocode(tolower(input$Direccion),
                      #"pedernera, 2037 - posadas, ar",
                      limit=1,
                      key = Sys.getenv("consumer_key"),
@@ -32,11 +34,11 @@ server <- function(input,output){
     dir$lat = -27.35812
     dir$place_id = "Erro"
   }
-  
+
   m <- leaflet() %>% #cambiar a un mapa base mas limpio
     addTiles() %>%
     addProviderTiles(providers$Stamen.Toner) %>% 
-    
+    setView(dir$lon, dir$lat, zoom = 16) %>%
     # direccion buscada
     addAwesomeMarkers( 
       lng = dir$lon, lat = dir$lat, popup = paste(dir$display_name),
@@ -54,20 +56,18 @@ server <- function(input,output){
         icon = 'ios-close',
         iconColor = 'black',
         library = 'ion',
-        markerColor = "red")) %>% 
-    setView(dir$lon, dir$lat, zoom = 16) #%>% 
+        markerColor = "red"))#%>% 
   #addLayersControl(
   #  baseGroups = c("Stamen.Toner"),
   #  overlayGroups = c("Hot SPrings"),
   #  options = layersControlOptions(collapsed = T)
   #  )
-  # Hacer que se haga la busqueda solo cuando se presione el boton
-  evento_reactivo <- eventReactive(input$ActualizarIndicadores, {
-    m
   })
-  output$mymap <- renderLeaflet({
-    evento_reactivo # Se agrega el evento reactivo
-  })
+    # Hacer que se haga la busqueda solo cuando se presione el boton
+    output$mymap <- renderLeaflet({
+      #Hay que poner con parentesis sino tira error
+      boton_reactivo()
+    })
 }
 
 # distancia para escuela mas proxima:
