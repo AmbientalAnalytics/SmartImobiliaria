@@ -2,6 +2,7 @@
 library(shiny)
 library(leaflet)
 library(tidyverse)
+library(plotly)
 
 # Shiny UI
 #?setView
@@ -18,7 +19,8 @@ ui <- fluidPage(
                            selected = "Restaurante"),
                 actionButton(inputId = "ActualizarIndicadores", label = "Buscar")),
              mainPanel(
-               leafletOutput("mymap",height = 1000)
+               leafletOutput("mymap",height = 500),
+               plotlyOutput("PlotIndices", height = 300)
   )
  )
 )
