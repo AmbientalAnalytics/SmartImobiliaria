@@ -1,8 +1,12 @@
 ## Cargando librerias
 library(shiny)
+library(shinydashboard)
+library(RColorBrewer)
 library(leaflet)
 library(tidyverse)
 library(sf)
+library(rgdal)
+library(plotly)
 #devtools::install_github("hrbrmstr/nominatim")
 library(nominatim)
 library(stringr)
@@ -10,7 +14,7 @@ library(stringr)
 # Shiny server
 server <- function(input,output){
   
-  boton_reactivo <- eventReactive(input$ActualizarIndicadores, {
+  boton_reactivo <- eventReactive(input$buscar, {
     if(input$Rubro == "Restaurante"){
       competencia <- read_sf("./Datos/DatosEspaciais.gpkg", "Restaurantes")
     } else {
@@ -19,25 +23,26 @@ server <- function(input,output){
     
     # direccion buscada
     dir <- osm_geocode(
-      #tolower(input$Direccion),
-      "pedernera, 2037 - posadas, ar",
-                     limit=1,
-                     key = Sys.getenv("consumer_key"),
-                     country_codes = 'ar')
+      tolower(input$direccion),
+      #"mitre, 2349 - posadas, ar",
+      limit=1,
+      key = Sys.getenv("consumer_key"),
+      country_codes = 'ar')
     
     dir.sf <- st_as_sf(x = dir, coords = c("lon", "lat"), crs = 4326)
-
+    
     
     #Building index
     # distance from school
     escuela <- read_sf("./Datos/DatosEspaciais.gpkg", "Escuelas")
     cole <- read_sf("./Datos/DatosEspaciais.gpkg", "ParadaColectivos")
     # distancia para escuela mas proxima:
-    dist.escuelas <- st_distance(dir.sf, escuela)[which.min(st_distance(dir.sf, escuela))]
-    dist.escuelas <- round(as.numeric(str_split(dist.escuelas, " ")), 2)
+    dist.escuelas <- st_distance(dir.sf, escuela) %>% sort()
+    dist.escuelas <- round(as.numeric(dist.escuelas)[1], 2)
     
-    dist.paradacole <- st_distance(dir.sf, escuela)[which.min(st_distance(dir.sf, cole))]
-    dist.paradacole <- round(as.numeric(str_split(dist.paradacole, " ")), 2)
+    dist.paradacole <- st_distance(dir.sf, cole) %>% sort()
+    dist.paradacole <- round(as.numeric(dist.paradacole)[1], 2)
+
     tbl <- data.frame(c("Parada Colectivos", "Escuela"), c(dist.paradacole, dist.escuelas))
     colnames(tbl) <- c("Elemento", "Distancia")
     indices <- ggplot(tbl) + geom_col(aes(x = Elemento, y = Distancia, fill = Elemento)) + coord_flip()
@@ -67,14 +72,31 @@ server <- function(input,output){
     #       st_geometry(dir.sf), st_geometry(competencia)), 5343), #envelope, 
     #   dTolerance = 1, bOnlyEdges = FALSE)
     # plot(st_geometry(voronoi))
-
     
+    # Añadiendo shape del Censo 2010
+    censo_2010 <- st_read("C:\\Users\\Usuario\\Documents\\Ambiental Analytics\\SmartImobiliaria\\Datos\\Censo_2010\\Censo2010Fixed.shp",
+    "Censo2010Fixed")
+    censo_2010 <- st_transform(censo_2010, 4326)
     # Mapa
+    if (input$KPI == "Población") {
+      poblacion <- censo_2010$totalpobl
+    } else if (input$KPI == "Hombres") {
+      hombres <- censo_2010$varon
+    } else  {
+      mujeres <- censo_2010$mujer
+    }
+    
     m <- leaflet() %>%
       addTiles() %>%
-      addProviderTiles(providers$Stamen.Toner) %>% 
+      addProviderTiles(providers$Stamen.Toner) %>%
+      addPolygons(data = censo_2010,
+                  fillColor = colorQuantile("YlOrRd",as.numeric(input$KPI)), #(as.numeric(input$KPI)),
+                  fillOpacity = 0.6) %>%
+      addLegend(position = c("bottomright"), 
+                pal = colorQuantile("YlOrRd",as.numeric(input$KPI)),
+                values = as.numeric(input$KPI), opacity = 0.6,
+                title = "Intervalos") %>% 
       setView(dir$lon, dir$lat, zoom = 16) %>%
-      
       addAwesomeMarkers( 
         lng = dir$lon, lat = dir$lat, popup = paste(dir$display_name),
         icon = awesomeIcons(
@@ -92,14 +114,17 @@ server <- function(input,output){
           iconColor = 'black',
           library = 'ion',
           markerColor = "red")) %>% 
+      #addMarkers(lng = st_coordinates(cole)[,"X"],
+                 #lat = st_coordinates(cole)[,"Y"]) %>% 
       addLayersControl(
         baseGroups = c("Stamen.Toner"),
         overlayGroups = c("Hot SPrings"),
         options = layersControlOptions(collapsed = T)
-        )
-    })
+        
+    )
+})
   
   output$mymap <- renderLeaflet({
     boton_reactivo()
-    })
-  }
+  })
+}
