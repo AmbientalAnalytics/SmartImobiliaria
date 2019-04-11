@@ -1,26 +1,36 @@
 # Cargando librerias
+## Cargando librerias
 library(shiny)
+library(shinydashboard)
 library(leaflet)
 library(tidyverse)
+library(sf)
+library(rgdal)
 library(plotly)
+#devtools::install_github("hrbrmstr/nominatim")
+library(nominatim)
+library(stringr)
 
-# Shiny UI
-#?setView
-ui <- fluidPage(
-        titlePanel("Inmobiliaria"),
-            sidebarLayout(
-              sidebarPanel(
-                textInput( inputId = "Direccion",
-                           label = "Seleccionar dirección",
-                           value = "pedernera, 2037 - posadas"),
-                radioButtons( inputId = "Rubro",
-                           label = "Seleccionar rubro",
-                           choices = c("Restaurante", "Bar", "otro1"),
-                           selected = "Restaurante"),
-                actionButton(inputId = "ActualizarIndicadores", label = "Buscar")),
-             mainPanel(
-               leafletOutput("mymap",height = 500),
-               plotlyOutput("PlotIndices", height = 300)
-  )
- )
-)
+# ShinyDashboard UI
+ui <- dashboardPage(skin = "purple",
+        dashboardHeader( title = "Inmobiliaria"),
+          dashboardSidebar(
+            sidebarMenu(
+            sidebarSearchForm(textId = "direccion", buttonId = "buscar",
+                              label = "Buscar dirección"),
+            radioButtons(inputId = "Rubro",
+                         label = "Seleccionar rubro",
+                         choices = c("Restaurante", "Bar", "otro1"),
+                         selected = "Restaurante"),
+                        selectInput(inputId = "KPI",
+                                    label = "Seleccionar opción",
+                                    choices = c("Población", "Hombres", "Mujeres"),
+                                    multiple = FALSE)
+            )),
+          dashboardBody(
+            box(title = "Mapa", status = "primary",solidHeader = T,
+                collapsible = T,leafletOutput("mymap",height = 500)),
+            box(title = "Indicadores", status = "warning",solidHeader = T,
+                collapsible = T, plotlyOutput("PlotIndices", height = 300))
+      )
+    )
