@@ -74,23 +74,24 @@ server <- function(input,output){
     # plot(st_geometry(voronoi))
     
     # Añadiendo shape del Censo 2010
-    censo_2010 <- st_read("C:\\Users\\Usuario\\Documents\\Ambiental Analytics\\SmartImobiliaria\\Datos\\Censo_2010\\Censo2010Fixed.shp",
+    censo_2010 <- st_read("./Datos/Censo_2010/Censo2010Fixed.shp",
     "Censo2010Fixed")
+    censo_2010 <- st_set_crs(censo_2010, 5349)
     censo_2010 <- st_transform(censo_2010, 4326)
     # Mapa
     if (input$KPI == "Población") {
       poblacion <- censo_2010$totalpobl
     } else if (input$KPI == "Hombres") {
-      hombres <- censo_2010$varon
+      poblacion <- censo_2010$varon
     } else  {
-      mujeres <- censo_2010$mujer
+      poblacion <- censo_2010$mujer
     }
     
     m <- leaflet() %>%
       addTiles() %>%
       addProviderTiles(providers$Stamen.Toner) %>%
       addPolygons(data = censo_2010,
-                  fillColor = colorQuantile("YlOrRd",as.numeric(input$KPI)), #(as.numeric(input$KPI)),
+                  fillColor = ~colorQuantile("YlOrRd", poblacion)(poblacion), 
                   fillOpacity = 0.6) %>%
       addLegend(position = c("bottomright"), 
                 pal = colorQuantile("YlOrRd",as.numeric(input$KPI)),
