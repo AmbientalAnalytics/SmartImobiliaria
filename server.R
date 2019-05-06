@@ -45,7 +45,10 @@ server <- function(input,output){
 
     tbl <- data.frame(c("Parada Colectivos", "Escuela"), c(dist.paradacole, dist.escuelas))
     colnames(tbl) <- c("Elemento", "Distancia")
-    indices <- ggplot(tbl) + geom_col(aes(x = Elemento, y = Distancia, fill = Elemento)) + coord_flip()
+    indices <- ggplot(tbl) + geom_col(aes(x = Elemento, y = Distancia, fill = Elemento), color = "black") +
+    labs(y = "Distancia (m)", x = "")+ coord_flip() +
+    scale_fill_brewer(palette="Dark2") + ylim(0, 300) + theme_classic() +
+    theme(legend.position = "none")
     output$PlotIndices <- renderPlotly({indices})
     
     
@@ -74,9 +77,8 @@ server <- function(input,output){
     # plot(st_geometry(voronoi))
     
     # Añadiendo shape del Censo 2010
-    censo_2010 <- st_read("./Datos/Censo_2010/Censo2010Fixed.shp",
+    censo_2010 <- st_read("C:\\Users\\Usuario\\Documents\\Ambiental Analytics\\SmartImobiliaria\\Datos\\Censo_2010\\Censo2010Fixed.shp",
     "Censo2010Fixed")
-    censo_2010 <- st_set_crs(censo_2010, 5349)
     censo_2010 <- st_transform(censo_2010, 4326)
     # Mapa
     if (input$KPI == "Población") {
@@ -86,16 +88,16 @@ server <- function(input,output){
     } else  {
       poblacion <- censo_2010$mujer
     }
-    
+
     m <- leaflet() %>%
       addTiles() %>%
       addProviderTiles(providers$Stamen.Toner) %>%
       addPolygons(data = censo_2010,
-                  fillColor = ~colorQuantile("YlOrRd", poblacion)(poblacion), 
+                  fillColor = colorBin(palette="YlOrRd", domain=c(min(poblacion), max(poblacion)), bins = 5)(poblacion),#colorQuantile("YlOrRd",poblacion)(poblacion), #(as.numeric(input$KPI)),
                   fillOpacity = 0.6) %>%
       addLegend(position = c("bottomright"), 
-                pal = colorQuantile("YlOrRd",as.numeric(input$KPI)),
-                values = as.numeric(input$KPI), opacity = 0.6,
+                pal = colorBin(palette="YlOrRd", domain=c(min(poblacion), max(poblacion)), bins = 5),#colorQuantile("YlOrRd",poblacion),
+                values = poblacion, opacity = 0.6,
                 title = "Intervalos") %>% 
       setView(dir$lon, dir$lat, zoom = 16) %>%
       addAwesomeMarkers( 
