@@ -20,7 +20,7 @@ ui <- dashboardPage(skin = "purple",
                               label = "Buscar dirección"),
             radioButtons(inputId = "Rubro",
                          label = "Seleccionar rubro",
-                         choices = c("Restaurante", "Bar", "otro1"),
+                         choices = c("Restaurante", "Bar"),
                          selected = "Restaurante"),
                         selectInput(inputId = "KPI",
                                     label = "Seleccionar opción",
@@ -31,6 +31,8 @@ ui <- dashboardPage(skin = "purple",
             box(title = "Mapa", status = "primary",solidHeader = T,
                 collapsible = T,leafletOutput("mymap",height = 500)),
             box(title = "Indicadores", status = "warning",solidHeader = T,
-                collapsible = T, plotlyOutput("PlotIndices", height = 300))
+                collapsible = T, plotlyOutput("PlotIndices", height = 300)),
+            box(title = "Indicadores Espaciales", status = "warning",solidHeader = T,
+                collapsible = T, plotlyOutput("PlotMkt", height = 300))
       )
     )
