@@ -33,6 +33,6 @@ ui <- dashboardPage(skin = "purple",
             box(title = "Indicadores", status = "warning",solidHeader = T,
                 collapsible = T, plotlyOutput("PlotIndices", height = 300)),
             box(title = "Indicadores Espaciales", status = "warning",solidHeader = T,
-                collapsible = T, plotlyOutput("PlotMkt", height = 300))
+                collapsible = T, plotOutput("PlotMkt", height = 300))
       )
     )

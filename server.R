@@ -10,26 +10,31 @@ library(plotly)
 #devtools::install_github("hrbrmstr/nominatim")
 library(nominatim)
 library(stringr)
+library(ggplot2)
 
 # Shiny server
 server <- function(input,output){
   
-  bbox_polygon <- function(x) {
-    bb <- sf::st_bbox(x)
-    p <- matrix(
-      c(bb["xmin"], bb["ymin"], 
-        bb["xmin"], bb["ymax"],
-        bb["xmax"], bb["ymax"], 
-        bb["xmax"], bb["ymin"], 
-        bb["xmin"], bb["ymin"]),
-      ncol = 2, byrow = T
-    )
-    
-    sf::st_polygon(list(p))
-  }
-  
   
   boton_reactivo <- eventReactive(input$buscar, {
+    
+    # inputs -----
+    # funccion usada en voronoi
+    bbox_polygon <- function(x) {
+      bb <- sf::st_bbox(x)
+      p <- matrix(
+        c(bb["xmin"], bb["ymin"], 
+          bb["xmin"], bb["ymax"],
+          bb["xmax"], bb["ymax"], 
+          bb["xmax"], bb["ymin"], 
+          bb["xmin"], bb["ymin"]),
+        ncol = 2, byrow = T
+      )
+      
+      sf::st_polygon(list(p))
+    }
+    
+    # identificacion del rubro
     if(input$Rubro == "Restaurante"){
       competencia <- read_sf("./Datos/DatosEspaciais.gpkg", "Restaurantes")
     } else {
@@ -38,19 +43,20 @@ server <- function(input,output){
     
     # direccion buscada
     dir <- osm_geocode(
-      #tolower(input$direccion),
-      "mitre, 2349 - posadas, ar",
+      tolower(input$direccion),
+      #"mitre, 2349 - posadas, ar",
       limit=1,
       key = Sys.getenv("consumer_key"),
       country_codes = 'ar')
-    
+    # cambindo a sf
     dir.sf <- st_as_sf(x = dir, coords = c("lon", "lat"), crs = 4326)
     
     # Añadiendo shape del Censo 2010
     censo_2010 <- st_read("./Datos/Censo_2010/Censo2010Fixed.shp",
                           "Censo2010Fixed")
     censo_2010 <- st_transform(censo_2010, 4326)
-    # Mapa
+    
+    #  info de nicho de mercado
     if (input$KPI == "Población") {
       poblacion <- censo_2010$totalpobl
     } else if (input$KPI == "Hombres") {
@@ -59,7 +65,7 @@ server <- function(input,output){
       poblacion <- censo_2010$mujer
     }
     
-    #Building index
+    #Building index ----
     # distance from school
     escuela <- read_sf("./Datos/DatosEspaciais.gpkg", "Escuelas")
     cole <- read_sf("./Datos/DatosEspaciais.gpkg", "ParadaColectivos")
@@ -78,7 +84,7 @@ server <- function(input,output){
     theme(legend.position = "none")
     output$PlotIndices <- renderPlotly({indices})
     
-    # # Market share
+    # # Market share -----
     # Seguir por acá: https://stackoverflow.com/questions/45719790/create-voronoi-polygon-with-simple-feature-in-r
     censo_2010$area <- st_area(censo_2010)
     posadas <-
@@ -104,12 +110,16 @@ server <- function(input,output){
     voronoi$area <- round(as.numeric(st_area(voronoi)),2)
     #plot(voronoi["area"])
     dir.sf$MktShare <- (st_join(dir.sf, voronoi, join = st_intersects)[["area"]]/mean(voronoi$area))*100
+    
     MktShare <- data.frame("MeanShare" = (st_join(unionpts, voronoi, join = st_intersects)[["area"]]/mean(voronoi$area))*100)
     MktShare <- mutate(MktShare, NormShare = MeanShare/max(MeanShare))
+    dir.sf$NormMkt <- dir.sf$MktShare/max(MktShare)
     mktsharePlot <- ggplot(MktShare, aes(x = NormShare, y = "")) + geom_line() +
-      geom_point(x = dir.sf$MktShare, col='red') + geom_text(aes(label = "Nuevo Local"), x = dir.sf$MktShare, y = 1.1)
-    output$PlotMkt <- renderPlotly({mktsharePlot})
-
+      geom_point(x = dir.sf$NormMkt, col='red') + geom_text(aes(label = "Nuevo Local"), x = dir.sf$NormMkt, y = 1.1) +
+      theme(axis.text.y = element_blank()) + ylab("") + xlab("Territorio exclusivo")
+    output$PlotMkt <- renderPlot(#renderPlotly(
+      mktsharePlot)
+    
     
     m <- leaflet() %>%
       addTiles() %>%
